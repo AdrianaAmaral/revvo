@@ -1,0 +1,65 @@
+{
+  "xsappname": "revvo-finance-app",
+  "tenant-mode": "dedicated",
+  "description": "Revvo Finance Integration with SAP",
+  "scopes": [
+    {
+      "name": "$XSAPPNAME.User",
+      "description": "Basic user access"
+    },
+    {
+      "name": "$XSAPPNAME.Admin",
+      "description": "Administrator access"
+    }
+  ],
+  "role-templates": [
+    {
+      "name": "User",
+      "description": "Revvo User",
+      "scope-references": [
+        "$XSAPPNAME.User"
+      ]
+    },
+    {
+      "name": "Admin",
+      "description": "Revvo Administrator",
+      "scope-references": [
+        "$XSAPPNAME.User",
+        "$XSAPPNAME.Admin"
+      ]
+    }
+  ],
+  "role-collections": [
+    {
+      "name": "RevvoUser",
+      "description": "Revvo User Role Collection",
+      "role-template-references": [
+        "$XSAPPNAME.User"
+      ]
+    },
+    {
+      "name": "RevvoAdmin",
+      "description": "Revvo Administrator Role Collection",
+      "role-template-references": [
+        "$XSAPPNAME.Admin"
+      ]
+    }
+  ],
+  "oauth2-configuration": {
+    "token-validity": 3600,
+    "refresh-token-validity": 86400,
+    "redirect-uris": [
+      "https://*.cfapps.br10.hana.ondemand.com/**",
+      "https://*.launchpad.cfapps.br10.hana.ondemand.com/**"
+    ],
+    "grant-types": [
+      "authorization_code",
+      "refresh_token"
+    ],
+    "system-attributes": [
+      "groups",
+      "rolecollections"
+    ]
+  }
+}
+
