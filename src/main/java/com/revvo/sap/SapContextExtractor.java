@@ -1,7 +1,7 @@
 package com.revvo.sap;
 
 import com.revvo.security.JwtClaimsExtractor;
-import jakarta.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletRequest;
 import org.springframework.stereotype.Component;
 
 import java.util.*;
@@ -24,7 +24,7 @@ public class SapContextExtractor {
      * 2) Claims do JWT (preferred_username, user_name, email, sub)
      */
     public String extractUsername(HttpServletRequest request) {
-        // Headers (varia por ambiente — aqui é onde você “descobre” via debug)
+        // Headers (varia por ambiente — aqui é onde você "descobre" via debug)
         String[] headerCandidates = new String[] {
                 "X-SAP-USER",
                 "X-Authenticated-User",
@@ -58,12 +58,76 @@ public class SapContextExtractor {
         return null;
     }
 
+    // -------- Nome do usuário --------
+
+    /**
+     * Extrai o nome completo do usuário dos headers SAP ou JWT claims
+     */
+    public String extractUserName(HttpServletRequest request) {
+        // Headers
+        String[] headerCandidates = new String[] {
+                "X-User-Name",
+                "X-SAP-USER-NAME",
+                "x-user-name",
+                "x-sap-user-name"
+        };
+
+        for (String h : headerCandidates) {
+            String v = request.getHeader(h);
+            if (v != null && !v.isBlank()) return v.trim();
+        }
+
+        // JWT fallback
+        Map<String, Object> claims = jwtClaimsExtractor.extractClaims(request);
+        String[] claimCandidates = new String[] {
+                "name",
+                "given_name",
+                "family_name"
+        };
+
+        for (String c : claimCandidates) {
+            Object v = claims.get(c);
+            if (v != null && !String.valueOf(v).isBlank()) return String.valueOf(v).trim();
+        }
+
+        return null;
+    }
+
+    // -------- Email do usuário --------
+
+    /**
+     * Extrai o email do usuário dos headers SAP ou JWT claims
+     */
+    public String extractUserEmail(HttpServletRequest request) {
+        // Headers
+        String[] headerCandidates = new String[] {
+                "X-User-Email",
+                "X-SAP-USER-EMAIL",
+                "x-user-email",
+                "x-sap-user-email"
+        };
+
+        for (String h : headerCandidates) {
+            String v = request.getHeader(h);
+            if (v != null && !v.isBlank()) return v.trim();
+        }
+
+        // JWT fallback
+        Map<String, Object> claims = jwtClaimsExtractor.extractClaims(request);
+        Object email = claims.get("email");
+        if (email != null && !String.valueOf(email).isBlank()) {
+            return String.valueOf(email).trim();
+        }
+
+        return null;
+    }
+
     // -------- Roles --------
 
     /**
      * Estratégia (ordem):
-     * 1) Header “direto” com roles (ex.: X-SAP-ROLES: A,B,C)
-     * 2) Header “groups/roles” (se existir no proxy)
+     * 1) Header "direto" com roles (ex.: X-SAP-ROLES: A,B,C)
+     * 2) Header "groups/roles" (se existir no proxy)
      * 3) JWT claims comuns: groups, roles, authorities, scope
      */
     public List<String> extractSapRoles(HttpServletRequest request) {
@@ -81,6 +145,17 @@ public class SapContextExtractor {
 
         // 2) JWT fallback
         Map<String, Object> claims = jwtClaimsExtractor.extractClaims(request);
+
+        // 2.0) XSUAA role collections (BTP) - vem dentro de xs.system.attributes.xs.rolecollections
+        Object xsSystemAttrsObj = claims.get("xs.system.attributes");
+        if (xsSystemAttrsObj instanceof Map) {
+            Map<?, ?> xsSystemAttrs = (Map<?, ?>) xsSystemAttrsObj;
+            Object roleCollectionsObj = xsSystemAttrs.get("xs.rolecollections");
+            List<String> roleCollections = asStringList(roleCollectionsObj);
+            if (!roleCollections.isEmpty()) {
+                return normalize(roleCollections);
+            }
+        }
 
         // groups / roles / authorities podem ser List ou String
         List<String> fromGroups = asStringList(claims.get("groups"));
@@ -101,11 +176,11 @@ public class SapContextExtractor {
                         .map(String::trim)
                         .filter(v -> !v.isEmpty())
                         .distinct()
-                        .toList();
+                        .collect(Collectors.toList());
             }
         }
 
-        return List.of();
+        return Collections.emptyList();
     }
 
     // -------- Helpers --------
@@ -123,24 +198,25 @@ public class SapContextExtractor {
                 .map(String::trim)
                 .filter(v -> !v.isEmpty())
                 .distinct()
-                .toList();
+                .collect(Collectors.toList());
     }
 
     private List<String> asStringList(Object value) {
-        if (value == null) return List.of();
+        if (value == null) return Collections.emptyList();
 
-        if (value instanceof Collection<?> col) {
+        if (value instanceof Collection<?>) {
+            Collection<?> col = (Collection<?>) value;
             return col.stream()
                     .filter(Objects::nonNull)
                     .map(String::valueOf)
                     .map(String::trim)
                     .filter(s -> !s.isEmpty())
                     .distinct()
-                    .toList();
+                    .collect(Collectors.toList());
         }
 
         String s = String.valueOf(value).trim();
-        if (s.isEmpty()) return List.of();
+        if (s.isEmpty()) return Collections.emptyList();
 
         // se vier "A,B,C"
         if (s.contains(",")) return splitCsv(s);
@@ -151,10 +227,10 @@ public class SapContextExtractor {
                     .map(String::trim)
                     .filter(v -> !v.isEmpty())
                     .distinct()
-                    .toList();
+                    .collect(Collectors.toList());
         }
 
-        return List.of(s);
+        return Collections.singletonList(s);
     }
 
     private List<String> normalize(List<String> values) {

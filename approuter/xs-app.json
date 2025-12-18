@@ -1,0 +1,19 @@
+{
+  "authenticationMethod": "route",
+  "routes": [
+    {
+      "source": "^/sap/(.*)$",
+      "target": "/sap/$1",
+      "destination": "revvo-backend",
+      "authenticationType": "xsuaa",
+      "csrfProtection": false
+    },
+    {
+      "source": "^/(.*)$",
+      "target": "/$1",
+      "destination": "revvo-backend",
+      "authenticationType": "xsuaa",
+      "csrfProtection": false
+    }
+  ]
+}

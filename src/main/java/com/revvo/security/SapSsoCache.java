@@ -45,16 +45,6 @@ public class SapSsoCache {
         log.debug("Permissões cacheadas para usuário: {} (TTL: {} min)", username, TTL_MINUTES);
     }
 
-    public void invalidate(String username) {
-        cache.remove(username);
-        log.debug("Cache invalidado para usuário: {}", username);
-    }
-
-    public void clear() {
-        cache.clear();
-        log.info("Cache de SSO limpo completamente");
-    }
-
     private static class CacheEntry {
         private final UserPermissions userPermissions;
         private final LocalDateTime expiresAt;

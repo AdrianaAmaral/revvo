@@ -1,0 +1,12 @@
+{
+  "name": "revvo-approuter",
+  "version": "1.0.0",
+  "private": true,
+  "dependencies": {
+    "@sap/approuter": "^16",
+    "@sap/xsenv": "^5"
+  },
+  "scripts": {
+    "start": "node start.js"
+  }
+}

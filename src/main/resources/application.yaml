@@ -7,47 +7,13 @@ spring:
       sso:
         enabled: true
         cache-ttl-minutes: 15
-    # Configuração OAuth2 Resource Server para validar JWT do XSUAA
-    oauth2:
-      resourceserver:
-        jwt:
-          # URI para validar o issuer do token (quem emitiu o token)
-          issuer-uri: https://cerc-financeintegrator-1ciub5oj.authentication.br10.hana.ondemand.com/oauth/token
-          # URI para buscar as chaves públicas (JWK Set) para validar a assinatura do JWT
-          jwk-set-uri: https://cerc-financeintegrator-1ciub5oj.authentication.br10.hana.ondemand.com/token_keys
-
-# Configuração XSUAA (caso precise fazer chamadas ao serviço)
-xsuaa:
-  url: https://cerc-financeintegrator-1ciub5oj.authentication.br10.hana.ondemand.com
-  clientid: sb-revvo!t8564
-  clientsecret: e0ffc4ed-9e40-418c-b1e2-aba1164c467a$7xWdMtHxEcK3w--0KJCNnnF36JqkgOjIR2XoITKoLyI=
-  xsappname: revvo!t8564
-  identityzone: cerc-financeintegrator-1ciub5oj
-  identityzoneid: 693db0bf-0aa6-4242-a2ab-96b0204c0b35
-  tenantid: 693db0bf-0aa6-4242-a2ab-96b0204c0b35
-  uaadomain: authentication.br10.hana.ondemand.com
 
 server:
   port: 8081
 
-permission:
-  mapping:
-    sap-revvo-file: classpath:config/permission-mapping/sap-revvo.json
-
-keycloak:
-  url: http://localhost:8080
-  realm: revvo
-  admin:
-    client-id: revvo-admin
-    client-secret: jRatX6xSGIjQ8ESLWVWOOl4WAX5xYQkZ
-  revvo:
-    client-id: domicilio_certo
-
-# Logging para debug SSO e JWT
+# Logging para debug SSO SAP
 logging:
   level:
     com.revvo.security: DEBUG
     com.revvo.sap: DEBUG
     org.springframework.security: INFO
-    org.springframework.security.oauth2: DEBUG
-    org.springframework.security.web: DEBUG

@@ -10,7 +10,10 @@ import java.util.List;
 public class UserPermissions {
 
     private String username;
-    private List<String> sapRoles; // nomes puros
-    private List<String> revvoRoles; // "domicilio_certo:estag" etc.
+    private String name;
+    private String email;
+    private String source; // "sap-sso" ou "local"
+    private List<String> sapRoles; // roles originais do SAP
+    private List<String> revvoRoles; // roles mapeados para o sistema Revvo
 
 }

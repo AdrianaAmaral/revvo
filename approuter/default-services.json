@@ -1,0 +1,12 @@
+{
+  "uaa": {
+    "name": "revvo-autenticacao-sso-sap",
+    "label": "xsuaa",
+    "tags": ["xsuaa"],
+    "plan": "application",
+    "clientid": "sb-revvo!t8564",
+    "clientsecret": "e0ffc4ed-9e40-418c-b1e2-aba1164c467a$7xWdMtHxEcK3w--0KJCNnnF36JqkgOjIR2XoITKoLyI=",
+    "url": "https://cerc-financeintegrator-1ciub5oj.authentication.br10.hana.ondemand.com",
+    "xsappname": "revvo!t8564"
+  }
+}

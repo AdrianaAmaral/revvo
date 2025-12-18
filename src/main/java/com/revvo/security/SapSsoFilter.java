@@ -3,10 +3,10 @@ package com.revvo.security;
 import com.revvo.sap.SapContextExtractor;
 import com.revvo.service.PermissionService;
 import com.revvo.domain.UserPermissions;
-import jakarta.servlet.FilterChain;
-import jakarta.servlet.ServletException;
-import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpServletResponse;
+import javax.servlet.FilterChain;
+import javax.servlet.ServletException;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -26,8 +26,16 @@ import java.util.stream.Collectors;
 /**
  * Filtro para autenticação SSO com SAP Build Work Zone / Fiori Launchpad.
  *
- * Captura usuário e roles SAP vindos de headers ou JWT token
- * e configura o SecurityContext do Spring automaticamente.
+ * Quando a aplicação é acessada através do Fiori/Launchpad, o SAP envia headers
+ * com informações do usuário já autenticado (ex: X-Authenticated-User, X-SAP-ROLES).
+ *
+ * Este filtro:
+ * 1. Extrai o usuário e roles dos headers SAP
+ * 2. Mapeia roles SAP para roles Revvo
+ * 3. Cacheia as permissões para otimizar performance
+ * 4. Configura o SecurityContext do Spring Security automaticamente
+ *
+ * Resultado: O usuário já vem "logado" sem necessidade de tela de login.
  */
 @Slf4j
 @Component
@@ -44,7 +52,7 @@ public class SapSsoFilter extends OncePerRequestFilter {
                                     FilterChain filterChain)
             throws ServletException, IOException {
 
-        // Se já está autenticado (ex: Keycloak), não sobrescrever
+        // Se já está autenticado, não sobrescrever
         if (SecurityContextHolder.getContext().getAuthentication() != null
                 && SecurityContextHolder.getContext().getAuthentication().isAuthenticated()) {
             filterChain.doFilter(request, response);
@@ -52,7 +60,7 @@ public class SapSsoFilter extends OncePerRequestFilter {
         }
 
         try {
-            // 1. Extrair usuário do contexto SAP (headers ou JWT)
+            // 1. Extrair usuário do contexto SAP (headers)
             String username = sapContextExtractor.extractUsername(request);
 
             if (username != null && !username.isBlank()) {
@@ -66,12 +74,15 @@ public class SapSsoFilter extends OncePerRequestFilter {
                     log.debug("Permissões recuperadas do cache para: {}", username);
                     userPermissions = cachedPermissions;
                 } else {
-                    // 3. Extrair roles SAP
+                    // 3. Extrair informações completas do usuário dos headers
+                    String name = sapContextExtractor.extractUserName(request);
+                    String email = sapContextExtractor.extractUserEmail(request);
                     List<String> sapRoles = sapContextExtractor.extractSapRoles(request);
-                    log.debug("Roles SAP extraídos: {}", sapRoles);
 
-                    // 4. Processar permissões (mapear SAP -> Revvo, aplicar no Keycloak)
-                    userPermissions = permissionService.processUserPermissions(username, sapRoles);
+                    log.debug("Informações SAP extraídas - Nome: {}, Email: {}, Roles: {}", name, email, sapRoles);
+
+                    // 4. Processar permissões (mapear SAP → Revvo)
+                    userPermissions = permissionService.processUserPermissions(username, name, email, sapRoles);
 
                     // 5. Cachear
                     sapSsoCache.put(username, userPermissions);
@@ -82,7 +93,7 @@ public class SapSsoFilter extends OncePerRequestFilter {
                         .map(role -> new SimpleGrantedAuthority("ROLE_" + role))
                         .collect(Collectors.toList());
 
-                // Adicionar roles SAP também (para audoria/debug)
+                // Adicionar roles SAP também (para auditoria/debug)
                 userPermissions.getSapRoles().forEach(sapRole ->
                     authorities.add(new SimpleGrantedAuthority("SAP_" + sapRole))
                 );
@@ -91,30 +102,25 @@ public class SapSsoFilter extends OncePerRequestFilter {
                 UserDetails userDetails = User.withUsername(username)
                         .password("N/A") // não usado em SSO
                         .authorities(authorities)
-                        .accountExpired(false)
-                        .accountLocked(false)
-                        .credentialsExpired(false)
-                        .disabled(false)
                         .build();
 
-                UsernamePasswordAuthenticationToken authentication =
+                UsernamePasswordAuthenticationToken auth =
                         new UsernamePasswordAuthenticationToken(
                                 userDetails,
                                 null,
                                 userDetails.getAuthorities()
                         );
 
-                authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+                auth.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
 
-                // 8. Injetar no SecurityContext
-                SecurityContextHolder.getContext().setAuthentication(authentication);
+                // 8. Configurar SecurityContext
+                SecurityContextHolder.getContext().setAuthentication(auth);
 
-                log.info("Autenticação SSO bem-sucedida para usuário: {} com {} roles Revvo",
-                         username, userPermissions.getRevvoRoles().size());
+                log.info("Usuário {} autenticado via SAP SSO com {} roles SAP",
+                         username, userPermissions.getSapRoles().size());
             }
         } catch (Exception e) {
-            log.error("Erro ao processar autenticação SSO: {}", e.getMessage(), e);
-            // Não bloqueia a requisição, deixa seguir
+            log.error("Erro ao processar SSO SAP", e);
         }
 
         filterChain.doFilter(request, response);
